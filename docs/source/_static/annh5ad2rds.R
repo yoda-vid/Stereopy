@@ -3,7 +3,6 @@ library(rjson)
 library(Seurat)
 library(ggplot2)
 library(argparser)
-library(SeuratDisk)
 
 
 args <- arg_parser("Converting h5ad file(.h5ad) to RDS.")
@@ -19,14 +18,16 @@ if ( is.null(argv$infile) || is.null(argv$outfile) ) {
 infile <- argv$infile
 outfile <- argv$outfile
 
-# convert h5ad as h5seurat, which means a seurat-object format stored in h5
-Convert(infile, dest = "h5seurat", assay = "Spatial", overwrite = TRUE)
+# load AnnData H5AD using package via Reticulate
+message("Loading H5AD file...")
+h5file <- anndata::read_h5ad(infile)
+print(str(h5file))
 
-h5file <- paste(paste(unlist(strsplit(infile, "h5ad", fixed = TRUE)), collapse='h5ad'), "h5seurat", sep="")
-print(paste(c("Finished! Converting h5ad to h5seurat file at:", h5file), sep=" ", collapse=NULL))
-
-object <- LoadH5Seurat(h5file)
-print(paste(c("Successfully load h5seurat:", h5file), sep=" ", collapse=NULL))
+# import counts matrix and metadata into a Seurat object
+message("Creating Seurat object...")
+object <- Seurat::CreateSeuratObject(
+  counts=t(as.matrix(h5file$X)), meta.data=h5file$obs)
+print(str(object))
 
 # spatial already transform to `Spatial`` in assays
 if (!is.null(object@reductions$spatial)) {
